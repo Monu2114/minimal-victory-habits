@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { PlusCircle, TrendingUp, Award, Heart } from "lucide-react";
+import { PlusCircle, TrendingUp, Award, Heart, Sparkles, BarChart } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -55,12 +55,24 @@ const Dashboard = () => {
       progress: 30
     }
   ]);
+  const [isPremium, setIsPremium] = useState(false);
+  const [habitLimit, setHabitLimit] = useState(5);
 
   useEffect(() => {
     // Check if user is authenticated
     const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
     if (!isAuthenticated) {
       navigate("/login");
+    }
+    
+    // Check premium status
+    const premiumStatus = localStorage.getItem("isPremium") === "true";
+    setIsPremium(premiumStatus);
+    
+    // Set habit limit based on premium status
+    const storedLimit = localStorage.getItem("habitLimit");
+    if (storedLimit === "unlimited") {
+      setHabitLimit(Infinity);
     }
     
     // Load habits from localStorage if available
@@ -93,6 +105,17 @@ const Dashboard = () => {
         description: "Please fill in all fields with valid content.",
         variant: "destructive",
       });
+      return;
+    }
+    
+    // Check habit limit for free users
+    if (!isPremium && habits.length >= habitLimit) {
+      toast({
+        title: "Habit Limit Reached",
+        description: "Upgrade to premium to track more than 5 habits!",
+        variant: "destructive",
+      });
+      navigate("/premium-upgrade");
       return;
     }
     
@@ -175,6 +198,16 @@ const Dashboard = () => {
             <Button variant="outline" onClick={handleLogout}>
               Sign Out
             </Button>
+            <Button variant="outline" onClick={() => navigate("/analytics")} className="gap-2">
+              <BarChart className="h-4 w-4" />
+              Analytics
+            </Button>
+            {!isPremium && (
+              <Button variant="secondary" onClick={() => navigate("/premium-upgrade")} className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                Go Premium
+              </Button>
+            )}
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
@@ -242,6 +275,32 @@ const Dashboard = () => {
             </Dialog>
           </div>
         </div>
+
+        {/* Premium Status Display */}
+        {isPremium ? (
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <span className="font-medium">Premium Account</span>
+              </div>
+              <span className="text-sm text-muted-foreground">Unlimited habit tracking enabled</span>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="bg-muted/50 border-muted">
+            <CardContent className="py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Free Account</span>
+                <span className="text-sm text-muted-foreground">{habits.length}/{habitLimit} habits used</span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => navigate("/premium-upgrade")} className="gap-1">
+                <Sparkles className="h-4 w-4" />
+                Upgrade
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

@@ -24,6 +24,19 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         navigate('/dashboard');
       }
 
+      // Track page view for analytics
+      const trackPageView = () => {
+        const currentPath = location.pathname;
+        // In a real app, this would send data to your analytics service
+        console.log(`Page view: ${currentPath}`);
+        
+        // Simple analytics tracking in localStorage for demo purposes
+        const pageViews = JSON.parse(localStorage.getItem('pageViews') || '{}');
+        pageViews[currentPath] = (pageViews[currentPath] || 0) + 1;
+        localStorage.setItem('pageViews', JSON.stringify(pageViews));
+      };
+      
+      trackPageView();
       setIsLoading(false);
     };
 
