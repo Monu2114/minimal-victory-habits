@@ -7,7 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 
 const formSchema = z.object({
@@ -19,7 +19,9 @@ type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const [userNotFound, setUserNotFound] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -31,22 +33,64 @@ const Login = () => {
 
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
+    setUserNotFound(false);
+    
     try {
       // In a real app, this would be an API call to your auth service
       console.log("Login submitted:", data);
       
-      // Simulate authentication delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Simulate authentication check - in a real app this would be server-side
+      const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+      const foundUser = users.find(user => user.email === data.email);
       
+      if (!foundUser) {
+        setUserNotFound(true);
+        toast({
+          title: "Account Not Found",
+          description: "No account found with this email. Would you like to register instead?",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Simple password check (in a real app, this would be hashed and checked server-side)
+      if (foundUser.password !== data.password) {
+        toast({
+          title: "Login Failed",
+          description: "Invalid email or password. Please try again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Authentication successful
       localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("user", JSON.stringify({ email: data.email }));
+      localStorage.setItem("user", JSON.stringify({ 
+        id: foundUser.id,
+        name: foundUser.name, 
+        email: foundUser.email,
+        isPremium: foundUser.isPremium || false
+      }));
+      
+      // Update premium status from user data
+      if (foundUser.isPremium) {
+        localStorage.setItem("isPremium", "true");
+        localStorage.setItem("habitLimit", "unlimited");
+      } else {
+        localStorage.setItem("isPremium", "false");
+        localStorage.setItem("habitLimit", "5");
+      }
       
       toast({
         title: "Login Successful",
         description: "Welcome back to Atomic Habits Tracker!",
       });
       
-      navigate("/dashboard");
+      // Redirect to the original requested URL or dashboard
+      const from = location.state?.from || "/dashboard";
+      navigate(from);
     } catch (error) {
       toast({
         title: "Login Failed",
@@ -99,6 +143,18 @@ const Login = () => {
               </Button>
             </form>
           </Form>
+          
+          {userNotFound && (
+            <div className="mt-4">
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={() => navigate('/register', { state: { email: form.getValues().email } })}
+              >
+                Create an Account
+              </Button>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
           <div className="text-center text-sm text-muted-foreground">

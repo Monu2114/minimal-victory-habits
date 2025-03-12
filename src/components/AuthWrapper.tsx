@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from '@/components/ui/use-toast';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -17,8 +18,23 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     const checkAuth = () => {
       const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
       const isPublicRoute = publicRoutes.includes(location.pathname);
+      const userData = localStorage.getItem('user');
 
       if (!isAuthenticated && !isPublicRoute) {
+        // Clear any potentially invalid auth data
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('user');
+        
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to access this page",
+          variant: "destructive",
+        });
+        
+        navigate('/login', { state: { from: location.pathname } });
+      } else if (isAuthenticated && !userData) {
+        // Invalid state: authenticated but no user data
+        localStorage.removeItem('isAuthenticated');
         navigate('/login');
       } else if (isAuthenticated && location.pathname === '/login') {
         navigate('/dashboard');
@@ -27,8 +43,16 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
       // Track page view for analytics
       const trackPageView = () => {
         const currentPath = location.pathname;
-        // In a real app, this would send data to your analytics service
         console.log(`Page view: ${currentPath}`);
+        
+        // Send to Google Analytics
+        if (window.gtag) {
+          window.gtag('event', 'page_view', {
+            page_title: document.title,
+            page_location: window.location.href,
+            page_path: currentPath,
+          });
+        }
         
         // Simple analytics tracking in localStorage for demo purposes
         const pageViews = JSON.parse(localStorage.getItem('pageViews') || '{}');

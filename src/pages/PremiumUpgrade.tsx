@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -9,23 +9,97 @@ import { toast } from "@/components/ui/use-toast";
 const PremiumUpgrade = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [userId, setUserId] = useState('');
+
+  useEffect(() => {
+    // Check if user is authenticated
+    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+    
+    // Get user ID
+    try {
+      const userData = JSON.parse(localStorage.getItem("user") || '{}');
+      if (!userData.id) {
+        // Invalid user data
+        localStorage.removeItem("isAuthenticated");
+        localStorage.removeItem("user");
+        navigate("/login");
+        return;
+      }
+      
+      setUserId(userData.id);
+      
+      // Check if already premium
+      if (userData.isPremium) {
+        toast({
+          title: "Already Premium",
+          description: "You already have a premium account with unlimited habits!",
+        });
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+      navigate("/login");
+    }
+  }, [navigate]);
 
   const handlePayment = async () => {
+    if (!userId) {
+      navigate("/login");
+      return;
+    }
+    
     setIsLoading(true);
     
     // In a real app, this would integrate with Razorpay or another payment gateway
     setTimeout(() => {
-      // Simulate successful payment
-      localStorage.setItem("isPremium", "true");
-      localStorage.setItem("habitLimit", "unlimited");
-      
-      toast({
-        title: "Payment Successful!",
-        description: "You now have access to unlimited habits tracking!",
-      });
-      
-      navigate("/dashboard");
-      setIsLoading(false);
+      try {
+        // Update user's premium status in local storage
+        const userData = JSON.parse(localStorage.getItem("user") || '{}');
+        userData.isPremium = true;
+        localStorage.setItem("user", JSON.stringify(userData));
+        
+        // Update premium flags
+        localStorage.setItem("isPremium", "true");
+        localStorage.setItem("habitLimit", "unlimited");
+        
+        // Also update in the registered users database
+        const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+        const updatedUsers = users.map(user => 
+          user.id === userId ? { ...user, isPremium: true } : user
+        );
+        localStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
+        
+        // Show success message
+        toast({
+          title: "Payment Successful!",
+          description: "You now have access to unlimited habits tracking!",
+        });
+        
+        // Track upgrade in analytics
+        if (window.gtag) {
+          window.gtag('event', 'premium_upgrade', {
+            method: 'simulated_payment',
+            value: 100,
+            currency: 'INR',
+            user_id: userId
+          });
+        }
+        
+        navigate("/dashboard");
+      } catch (error) {
+        console.error("Error upgrading account:", error);
+        toast({
+          title: "Upgrade Failed",
+          description: "There was an error processing your payment. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }, 2000);
   };
 

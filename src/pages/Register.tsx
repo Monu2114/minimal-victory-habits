@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 
 const formSchema = z.object({
@@ -20,28 +20,72 @@ type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      email: "",
+      email: location.state?.email || "",
       password: "",
     },
   });
 
+  // Update form value if email is passed from login page
+  useEffect(() => {
+    if (location.state?.email) {
+      form.setValue('email', location.state.email);
+    }
+  }, [location.state, form]);
+
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      // In a real app, this would be an API call to your auth service
-      console.log("Registration submitted:", data);
+      // Check if email already exists
+      const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+      const existingUser = users.find(user => user.email === data.email);
       
-      // Simulate authentication delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (existingUser) {
+        toast({
+          title: "Registration Failed",
+          description: "An account with this email already exists. Please log in instead.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
       
+      // Create a new user
+      const newUser = {
+        id: Date.now().toString(),
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        isPremium: false,
+        dateCreated: new Date().toISOString()
+      };
+      
+      // Save to user registry
+      users.push(newUser);
+      localStorage.setItem('registeredUsers', JSON.stringify(users));
+      
+      // Set authenticated user
       localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("user", JSON.stringify({ name: data.name, email: data.email }));
+      localStorage.setItem("user", JSON.stringify({ 
+        id: newUser.id,
+        name: newUser.name, 
+        email: newUser.email,
+        isPremium: false
+      }));
+      
+      // Set default premium status
+      localStorage.setItem("isPremium", "false");
+      localStorage.setItem("habitLimit", "5");
+      
+      // Create empty habits array for new user
+      const userHabits = [];
+      localStorage.setItem(`habits_${newUser.id}`, JSON.stringify(userHabits));
       
       toast({
         title: "Registration Successful",

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,33 @@ type FormValues = z.infer<typeof formSchema>;
 const Onboarding = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [userId, setUserId] = useState('');
+
+  useEffect(() => {
+    // Check if user is authenticated
+    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+    
+    // Get user ID
+    try {
+      const userData = JSON.parse(localStorage.getItem("user") || '{}');
+      if (!userData.id) {
+        // Invalid user data
+        localStorage.removeItem("isAuthenticated");
+        localStorage.removeItem("user");
+        navigate("/login");
+        return;
+      }
+      
+      setUserId(userData.id);
+    } catch (error) {
+      console.error("Error loading user data:", error);
+      navigate("/login");
+    }
+  }, [navigate]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -32,9 +59,14 @@ const Onboarding = () => {
   });
 
   const onSubmit = async (data: FormValues) => {
+    if (!userId) {
+      navigate("/login");
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      // In a real app, this would save to your backend/database
+      // Create the first habit for this user
       const newHabit = {
         id: 1,
         name: data.habitName,
@@ -43,12 +75,11 @@ const Onboarding = () => {
         streak: 0,
         completed: false,
         progress: 0,
+        createdAt: new Date().toISOString()
       };
       
-      // Store in localStorage for now
-      const habits = JSON.parse(localStorage.getItem("habits") || "[]");
-      habits.push(newHabit);
-      localStorage.setItem("habits", JSON.stringify(habits));
+      // Store in localStorage for the specific user
+      localStorage.setItem(`habits_${userId}`, JSON.stringify([newHabit]));
       
       toast({
         title: "First Habit Created",

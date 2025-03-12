@@ -26,66 +26,64 @@ type FormValues = z.infer<typeof habitFormSchema>;
 const Dashboard = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [habits, setHabits] = useState([
-    { 
-      id: 1, 
-      name: "Daily Push-ups", 
-      category: "Fitness",
-      mvpGoal: "At least 5 push-ups",
-      streak: 3,
-      completed: false,
-      progress: 60
-    },
-    { 
-      id: 2, 
-      name: "Read Books", 
-      category: "Personal",
-      mvpGoal: "Read 10 pages",
-      streak: 5,
-      completed: true,
-      progress: 80
-    },
-    { 
-      id: 3, 
-      name: "Meditate", 
-      category: "Wellness",
-      mvpGoal: "Meditate for 5 minutes",
-      streak: 0,
-      completed: false,
-      progress: 30
-    }
-  ]);
+  const [habits, setHabits] = useState([]);
   const [isPremium, setIsPremium] = useState(false);
   const [habitLimit, setHabitLimit] = useState(5);
+  const [userId, setUserId] = useState('');
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     // Check if user is authenticated
     const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
     if (!isAuthenticated) {
       navigate("/login");
+      return;
     }
     
-    // Check premium status
-    const premiumStatus = localStorage.getItem("isPremium") === "true";
-    setIsPremium(premiumStatus);
-    
-    // Set habit limit based on premium status
-    const storedLimit = localStorage.getItem("habitLimit");
-    if (storedLimit === "unlimited") {
-      setHabitLimit(Infinity);
-    }
-    
-    // Load habits from localStorage if available
-    const savedHabits = localStorage.getItem("habits");
-    if (savedHabits) {
-      try {
-        const parsedHabits = JSON.parse(savedHabits);
-        if (parsedHabits.length > 0) {
-          setHabits(parsedHabits);
-        }
-      } catch (error) {
-        console.error("Error parsing habits from localStorage:", error);
+    // Get user data
+    try {
+      const userData = JSON.parse(localStorage.getItem("user") || '{}');
+      if (!userData.id) {
+        // Invalid user data
+        localStorage.removeItem("isAuthenticated");
+        localStorage.removeItem("user");
+        navigate("/login");
+        return;
       }
+      
+      setUserId(userData.id);
+      setUserName(userData.name || 'User');
+      
+      // Check premium status
+      const premiumStatus = localStorage.getItem("isPremium") === "true" || userData.isPremium === true;
+      setIsPremium(premiumStatus);
+      
+      // Set habit limit based on premium status
+      const storedLimit = localStorage.getItem("habitLimit");
+      if (storedLimit === "unlimited" || premiumStatus) {
+        setHabitLimit(Infinity);
+      } else {
+        setHabitLimit(5);
+      }
+      
+      // Load habits from localStorage for this specific user
+      const savedHabits = localStorage.getItem(`habits_${userData.id}`);
+      if (savedHabits) {
+        try {
+          const parsedHabits = JSON.parse(savedHabits);
+          setHabits(Array.isArray(parsedHabits) ? parsedHabits : []);
+        } catch (error) {
+          console.error("Error parsing habits from localStorage:", error);
+          setHabits([]);
+        }
+      } else {
+        // First time - initialize empty habits array for this user
+        localStorage.setItem(`habits_${userData.id}`, JSON.stringify([]));
+        setHabits([]);
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+      navigate("/login");
     }
   }, [navigate]);
 
@@ -126,14 +124,15 @@ const Dashboard = () => {
       mvpGoal: data.mvpGoal,
       streak: 0,
       completed: false,
-      progress: 0
+      progress: 0,
+      createdAt: new Date().toISOString()
     };
     
     const updatedHabits = [...habits, newHabit];
     setHabits(updatedHabits);
     
-    // Save to localStorage
-    localStorage.setItem("habits", JSON.stringify(updatedHabits));
+    // Save to localStorage with user-specific key
+    localStorage.setItem(`habits_${userId}`, JSON.stringify(updatedHabits));
     
     toast({
       title: "Habit Created",
@@ -153,8 +152,8 @@ const Dashboard = () => {
     
     setHabits(updatedHabits);
     
-    // Save to localStorage
-    localStorage.setItem("habits", JSON.stringify(updatedHabits));
+    // Save to localStorage with user-specific key
+    localStorage.setItem(`habits_${userId}`, JSON.stringify(updatedHabits));
     
     const habit = habits.find(h => h.id === id);
     
@@ -168,30 +167,25 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("user");
+    // Don't remove user data from localStorage to persist registered users
     navigate("/");
   };
 
   const stats = {
     totalHabits: habits.length,
     completedToday: habits.filter(habit => habit.completed).length,
-    longestStreak: Math.max(...habits.map(habit => habit.streak), 0),
+    longestStreak: habits.length ? Math.max(...habits.map(habit => habit.streak), 0) : 0,
     averageProgress: habits.length 
       ? Math.round(habits.reduce((sum, habit) => sum + habit.progress, 0) / habits.length) 
       : 0
   };
-
-  // Get user name from localStorage
-  const user = localStorage.getItem("user") 
-    ? JSON.parse(localStorage.getItem("user")!) 
-    : { name: "User" };
 
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Hello, {user.name || "there"}!</h1>
+            <h1 className="text-3xl font-bold text-foreground">Hello, {userName}!</h1>
             <p className="text-muted-foreground">Focus on minimum viable progress daily</p>
           </div>
           <div className="flex gap-2">
