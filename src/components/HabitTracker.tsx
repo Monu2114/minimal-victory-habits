@@ -83,8 +83,9 @@ const HabitTracker: React.FC<HabitTrackerProps> = ({ habits, onCompleteHabit }) 
       </div>
       
       {habits.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No habits added yet. Click "Add Habit" to get started!</p>
+        <div className="text-center py-12 bg-muted/30 rounded-lg">
+          <p className="text-muted-foreground mb-2">No habits added yet.</p>
+          <p className="text-sm text-muted-foreground">Click "Add Habit" to begin your journey to better habits!</p>
         </div>
       )}
     </div>
