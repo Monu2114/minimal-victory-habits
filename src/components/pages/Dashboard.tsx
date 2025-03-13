@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import HabitTracker from "@/components/HabitTracker";
@@ -9,6 +9,52 @@ import { useToast } from "@/hooks/use-toast";
 
 const DashboardPage = () => {
   const { toast } = useToast();
+  const [habits, setHabits] = useState([
+    {
+      id: 1,
+      name: "Morning Meditation",
+      category: "Wellness",
+      mvpGoal: "5 minutes of mindfulness",
+      streak: 3,
+      completed: false,
+      progress: 60
+    },
+    {
+      id: 2,
+      name: "Read a Book",
+      category: "Learning",
+      mvpGoal: "10 pages per day",
+      streak: 5,
+      completed: true,
+      progress: 75
+    },
+    {
+      id: 3,
+      name: "Drink Water",
+      category: "Health",
+      mvpGoal: "8 glasses per day",
+      streak: 1,
+      completed: false,
+      progress: 40
+    }
+  ]);
+  
+  const handleCompleteHabit = (id) => {
+    setHabits(habits.map(habit => 
+      habit.id === id 
+        ? {...habit, completed: !habit.completed, streak: habit.completed ? habit.streak - 1 : habit.streak + 1} 
+        : habit
+    ));
+    
+    const habit = habits.find(h => h.id === id);
+    
+    toast({
+      title: habit.completed ? "Habit Unmarked" : "MVP Goal Achieved! 🎉",
+      description: habit.completed 
+        ? `You've unmarked '${habit.name}'` 
+        : `You've completed your MVP goal for '${habit.name}'!`,
+    });
+  };
   
   // Importing the Dashboard functionality from the original page
   React.useEffect(() => {
@@ -34,7 +80,7 @@ const DashboardPage = () => {
               <CardDescription>Track your atomic habits and build consistency</CardDescription>
             </CardHeader>
             <CardContent>
-              <HabitTracker />
+              <HabitTracker habits={habits} onCompleteHabit={handleCompleteHabit} />
             </CardContent>
           </Card>
         </TabsContent>
