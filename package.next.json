@@ -1,0 +1,12 @@
+
+{
+  "name": "atomic-habits-tracker-next",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:next": "next dev",
+    "build:next": "next build",
+    "start:next": "next start",
+    "lint": "next lint"
+  }
+}
