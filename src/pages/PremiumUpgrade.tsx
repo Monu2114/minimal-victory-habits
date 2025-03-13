@@ -80,7 +80,7 @@ const PremiumUpgrade = () => {
         });
         
         // Track upgrade in analytics
-        if (window.gtag) {
+        if (typeof window.gtag === 'function') {
           window.gtag('event', 'premium_upgrade', {
             method: 'simulated_payment',
             value: 100,

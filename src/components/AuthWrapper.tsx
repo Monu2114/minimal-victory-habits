@@ -46,7 +46,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         console.log(`Page view: ${currentPath}`);
         
         // Send to Google Analytics
-        if (window.gtag) {
+        if (typeof window.gtag === 'function') {
           window.gtag('event', 'page_view', {
             page_title: document.title,
             page_location: window.location.href,
