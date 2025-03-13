@@ -6,9 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import HabitTracker from "@/components/HabitTracker";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/integrations/supabase/client";
 
 const DashboardPage = () => {
   const { toast } = useToast();
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [habits, setHabits] = useState([
     {
       id: 1,
@@ -39,6 +44,85 @@ const DashboardPage = () => {
     }
   ]);
   
+  useEffect(() => {
+    const getUser = async () => {
+      try {
+        setLoading(true);
+        
+        // Get current session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (!session) {
+          // Redirect to login if no session
+          toast({
+            title: "Authentication Required",
+            description: "Please sign in to access your dashboard",
+            variant: "destructive",
+          });
+          router.push('/login');
+          return;
+        }
+        
+        // Get user details
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          throw userError;
+        }
+        
+        if (userData?.user) {
+          console.log("User data loaded:", userData.user);
+          setUser(userData.user);
+          
+          // Here you would typically load the user's habits from Supabase
+          // const { data: habitsData, error: habitsError } = await supabase
+          //   .from('habits')
+          //   .select('*')
+          //   .eq('user_id', userData.user.id);
+          
+          // if (!habitsError && habitsData) {
+          //   setHabits(habitsData);
+          // }
+        }
+      } catch (error) {
+        console.error("Error loading user:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your data. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    getUser();
+    
+    // Set up auth state change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN') {
+          const { data: userData } = await supabase.auth.getUser();
+          setUser(userData?.user || null);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          router.push('/login');
+        }
+      }
+    );
+    
+    return () => {
+      // Clean up subscription when component unmounts
+      if (authListener && authListener.subscription) {
+        authListener.subscription.unsubscribe();
+      }
+    };
+  }, [router, toast]);
+  
   const handleCompleteHabit = (id) => {
     setHabits(habits.map(habit => 
       habit.id === id 
@@ -56,15 +140,24 @@ const DashboardPage = () => {
     });
   };
   
-  // Importing the Dashboard functionality from the original page
-  React.useEffect(() => {
-    console.log("Dashboard page loaded");
-    // This is where we would fetch user data, habits, etc.
-  }, []);
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-screen">
+        <div className="animate-pulse text-primary">Loading your dashboard...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        {user && (
+          <div className="text-sm text-muted-foreground">
+            Signed in as: {user.email}
+          </div>
+        )}
+      </div>
       
       <Tabs defaultValue="habits" className="w-full">
         <TabsList className="mb-4">
